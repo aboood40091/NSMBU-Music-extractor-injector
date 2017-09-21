@@ -337,20 +337,22 @@ def extract(fsar):
         folder = os.path.dirname(fsar)
         if folder: folder += '/'
 
-        pos = tracks[track][0]
-
-        endianness = "big" if inb[pos+4:pos+6] == b'\xFE\xFF' else "little"
-        endianness2 = ">" if inb[pos+4:pos+6] == b'\xFE\xFF' else "<"
-
-        size = struct.unpack(endianness2 + "I", inb[pos+12:pos+16])[0]
+        pos, size = tracks[track]
 
         if inb[pos:pos+4] != b'FWAV':
             print('')
             print("Could not read " + track + " from BFSAR!")
             sys.exit(1)
 
+        endianness = ">" if inb[pos+4:pos+6] == b'\xFE\xFF' else "<"
+
+        size2 = struct.unpack(endianness + "I", inb[pos+12:pos+16])[0]
+
+        if size2 > size:
+            size2 = size
+
         with open(folder + track + '.bfwav', "wb+") as output:
-            output.write(inb[pos:pos+size])
+            output.write(inb[pos:pos+size2])
 
 
 def inject(fsar, num, fwav):
@@ -374,11 +376,13 @@ def inject(fsar, num, fwav):
 
     pos, size = tracks[name]
 
-    endianness = "big" if inb[pos+4:pos+6] == b'\xFE\xFF' else "little"
+    endianness = ">" if inb2[4:6] == b'\xFE\xFF' else "<"
 
     size2 = len(inb2)
 
-    if size2 > size:
+    size3 = struct.unpack(endianness + "I", inb2[12:16])[0]
+
+    if size2 > size or size3 > size:
         print('')
         print("Size of the BFWAV file exceeds the original!")
         sys.exit(1)
